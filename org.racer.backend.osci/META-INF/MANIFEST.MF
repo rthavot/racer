@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Osci
-Bundle-SymbolicName: ch.epfl.stimm.yace.backend.osci;singleton:=true
+Bundle-SymbolicName: org.racer.backend.osci;singleton:=true
 Bundle-Version: 1.0.0.qualifier
 Bundle-Activator: ch.epfl.stimm.yace.backend.osci.Activator
 Require-Bundle: net.sf.orcc.core;bundle-version="1.4.0",
