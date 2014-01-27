@@ -46,7 +46,7 @@ import net.sf.orcc.util.Attributable
 import net.sf.orcc.util.OrccLogger
 import net.sf.orcc.util.OrccUtil
 
-import static ch.epfl.stimm.yace.backend.osci.OsciPathConstant.*
+import static org.racer.backend.osci.OsciPathConstant.*
 
 abstract class OsciTemplate extends CTemplate {
 

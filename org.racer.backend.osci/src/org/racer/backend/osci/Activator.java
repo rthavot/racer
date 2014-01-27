@@ -1,4 +1,4 @@
-package ch.epfl.stimm.yace.backend.osci;
+package org.racer.backend.osci;
 
 import org.eclipse.core.runtime.Plugin;
 import org.osgi.framework.BundleContext;

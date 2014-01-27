@@ -4,13 +4,16 @@
    <extension
          point="net.sf.orcc.backends.backends">
       <backend
-            class="ch.epfl.stimm.yace.backend.osci.OsciBackendImpl"
+            class="org.racer.backend.osci.OsciBackendImpl"
             name="OSCI">
          <option
                id="net.sf.orcc.plugins.compileXDF">
          </option>
          <option
-               id="ch.epfl.stimm.yace.backend.osci.ui.omapping">
+               id="org.racer.backend.osci.ui.option.mapping">
+         </option>
+         <option
+               id="org.racer.backend.osci.ui.option.ipc">
          </option>
       </backend>
    </extension>
@@ -18,17 +21,33 @@
          id="osci"
          point="net.sf.orcc.core.options">
       <option
-            id="ch.epfl.stimm.yace.backend.osci.ui.omapping"
+            id="org.racer.backend.osci.ui.option.mapping"
             name="Mapping">
          <checkBox>
             <option
-                  id="ch.epfl.stimm.yace.backend.osci.ui.mapping"
+                  id="org.racer.backend.osci.ui.option.mapping"
                   name="File">
                <browseFile
                      folder="false"
                      workspace="true">
                </browseFile>
             </option></checkBox>
+      </option>
+      <option
+            defaultValue="FIFO"
+            id="org.racer.backend.osci.ui.option.ipc"
+            name="IPC">
+         <comboBox>
+            <comboBoxItem
+                  id="FIFO">
+            </comboBoxItem>
+            <comboBoxItem
+                  id="Shared Memory">
+            </comboBoxItem>
+            <comboBoxItem
+                  id="Cache Memory">
+            </comboBoxItem>
+         </comboBox>
       </option>
    </extension>
    <extension

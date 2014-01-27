@@ -5,7 +5,7 @@ import java.util.Map
 import net.sf.orcc.df.Network
 import net.sf.orcc.util.OrccUtil
 
-import static ch.epfl.stimm.yace.backend.osci.OsciPathConstant.*
+import static org.racer.backend.osci.OsciPathConstant.*
 
 class OsciRuntimePrinter {
 

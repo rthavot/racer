@@ -25,7 +25,7 @@ class OsciInstancePrinter extends OsciTemplate {
 		
 		#include <systemc.h>	
 		#include <tlm.h>
-		#include "cbuffer.h"
+		#include <YACE.h>
 		
 		using namespace sc_core;
 		using namespace tlm;
@@ -102,7 +102,6 @@ class OsciInstancePrinter extends OsciTemplate {
 		// Generated from «entityName»
 		
 		#include <«entityName».h>
-		#include <YACE.h>
 		
 		«beginSection("Temporary Variables")»
 		«FOR v : actor.stateVars.filter(v|v.initialized)»«v.declareTemporary.wrap(", ", 72)»«ENDFOR»

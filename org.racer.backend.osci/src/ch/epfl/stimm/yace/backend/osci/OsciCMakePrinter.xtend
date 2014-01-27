@@ -1,10 +1,26 @@
 package ch.epfl.stimm.yace.backend.osci
 
 import net.sf.orcc.df.Network
+import java.util.Map
+import java.io.File
 
-class CMakePrinter extends StandardPrinter  {
-	
-	override compileNetwork(Network network) '''
+import static org.racer.backend.osci.OsciPathConstant.*
+import net.sf.orcc.util.OrccUtil
+
+class OsciCMakePrinter {
+
+	new(Map<String, Object> options) {
+	}
+
+	def print(String targetFolder, Network network) {
+		val sourceFile = new File(targetFolder, "CMakeLists.txt")
+
+		val source = content(network)
+		OrccUtil::printFile(source, sourceFile)
+		return 0
+	}
+
+	def content(Network network) '''
 		CMAKE_MINIMUM_REQUIRED (VERSION 2.8)
 		PROJECT («network.simpleName»)
 		
@@ -20,9 +36,12 @@ class CMakePrinter extends StandardPrinter  {
 		SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 		endif()
 		
+		SET(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+		
 		SET(LIB_DIR D:/eclipse/yace/trunk/eclipse/plugins/ch.epfl.stimm.yace.backend.osci/runtime)
 		SET(TINYXML_INCLUDE_DIR ${LIB_DIR}/tinyxml/include)
 		SET(YACE_INCLUDE_DIR ${LIB_DIR}/yace/include)
+		SET(PROJECT_INCLUDE_DIR ${PROJECT_DIR}/«INCLUDE»)
 		
 		SUBDIRS(${LIB_DIR})
 		
@@ -32,14 +51,14 @@ class CMakePrinter extends StandardPrinter  {
 			${TLM_INCLUDE_DIR}
 			${TINYXML_INCLUDE_DIR}
 			${YACE_INCLUDE_DIR}
+			${PROJECT_INCLUDE_DIR}
 		)
 		
+		FILE ( GLOB_RECURSE PROJECT_INCLUDE_FILES ${PROJECT_INCLUDE_DIR}/* )
+		FILE ( GLOB_RECURSE PROJECT_SRC_FILES ${PROJECT_DIR}/«SRC»/* )
+		
 		ADD_EXECUTABLE («network.simpleName»
-		#Header files
-		«FOR instance : network.children.actorInstances.filter[!actor.native] SEPARATOR "\n"»«instance.simpleName».h«ENDFOR»
-		«network.simpleName».h
-		#Source files
-		«network.simpleName».runtime.cpp
+			${PROJECT_INCLUDE_FILES} ${PROJECT_SRC_FILES}
 		)
 		
 		SET(libraries Yace TinyXml)

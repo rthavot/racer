@@ -1,4 +1,4 @@
-package ch.epfl.stimm.yace.backend.osci;
+package org.racer.backend.osci;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -27,10 +27,13 @@ import net.sf.orcc.util.Void;
 
 import org.eclipse.core.resources.IFile;
 
-import static ch.epfl.stimm.yace.backend.osci.OsciPathConstant.*;
+import org.racer.backend.osci.CMakePrinter;
+import org.racer.backend.osci.InstancePrinter;
+import org.racer.backend.osci.NetworkPrinter;
+import org.racer.backend.osci.RuntimePrinter;
+import static org.racer.backend.osci.OsciPathConstant.*;
 
 public class OsciBackendImpl extends AbstractBackend {
-
 
 	@Override
 	protected void doInitializeOptions() {
@@ -52,7 +55,6 @@ public class OsciBackendImpl extends AbstractBackend {
 		transformations.add(new DfVisitor<Void>(new LoopUnrolling()));
 		transformations.add(new DfVisitor<Void>(new DeadCodeElimination()));
 		transformations.add(new DfVisitor<Void>(new DeadVariableRemoval()));
-		
 
 		for (DfSwitch<?> transformation : transformations) {
 			transformation.doSwitch(actor);
@@ -88,27 +90,33 @@ public class OsciBackendImpl extends AbstractBackend {
 		// print network
 		OrccLogger.trace("Printing network...\n");
 		printNetwork(network);
-		
+
 		// print Runtime
 		OrccLogger.trace("Printing runtime...\n");
 		printRuntime(network);
-		
-		/*
-		 * if (compiler.equals(SOFTWARE)) { SwBackendImpl swBackend = new
-		 * SwBackendImpl(path); swBackend.setOptions(this.getAttributes());
-		 * swBackend.doXdfCodeGeneration(network); } else if
-		 * (compiler.equals(HARDWARE)) { HwBackendImpl hwBackend = new
-		 * HwBackendImpl(path); hwBackend.setOptions(this.getAttributes());
-		 * hwBackend.doXdfCodeGeneration(network); }
-		 */
+
+		// print Runtime
+		OrccLogger.trace("Printing cmake...\n");
+		printCMake(network);
+
 	}
 
 	private boolean printNetwork(Network network) {
-		return new OsciNetworkPrinter(options).print(path, network) > 0;
+		String targetPath = path + File.separator + network.getSimpleName() + ".h";
+		return new NetworkPrinter(options).print(targetPath, network) > 0;
+		//return new OsciNetworkPrinter(options).print(path, network) > 0;
 	}
 
 	private boolean printRuntime(Network network) {
-		return new OsciRuntimePrinter(options).print(path, network) > 0;
+		String targetPath = path + File.separator + "runtime.cpp";
+		return new RuntimePrinter(options).print(targetPath, network) > 0;
+		//return new OsciRuntimePrinter(options).print(path, network) > 0;
+	}
+
+	private boolean printCMake(Network network) {
+		String targetPath = path + File.separator + "CMakeLists.txt";
+		return new CMakePrinter(options).print(targetPath, network) > 0;
+		//return new OsciCMakePrinter(options).print(path, network) > 0;
 	}
 
 	@Override
@@ -117,12 +125,14 @@ public class OsciBackendImpl extends AbstractBackend {
 
 	@Override
 	protected boolean printInstance(Instance instance) {
-		return new OsciInstancePrinter(options).print(path, instance) > 0;
+		return printActor(instance.getActor());
 	}
 
 	@Override
 	protected boolean printActor(Actor actor) {
-		return new OsciInstancePrinter(options).print(path, actor) > 0;
+		String targetPath = path + File.separator + actor.getName() + ".h";
+		return new InstancePrinter(options).print(targetPath, actor) > 0;
+		// return new OsciInstancePrinter(options).print(path, actor) > 0;
 	}
 
 }

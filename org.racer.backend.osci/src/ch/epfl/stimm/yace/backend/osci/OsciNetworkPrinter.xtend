@@ -7,7 +7,7 @@ import net.sf.orcc.df.Actor
 import net.sf.orcc.df.Network
 import net.sf.orcc.util.OrccUtil
 
-import static ch.epfl.stimm.yace.backend.osci.OsciPathConstant.*
+import static org.racer.backend.osci.OsciPathConstant.*
 
 class OsciNetworkPrinter extends OsciTemplate {
 
@@ -34,10 +34,9 @@ class OsciNetworkPrinter extends OsciTemplate {
 		#ifndef __«network.simpleName.toUpperCase»_H__
 		#define __«network.simpleName.toUpperCase»_H__
 		
-		#include <yace.h>
 		#include <systemc.h>
 		#include <tlm.h>
-		#include "cbuffer.h"
+		#include <YACE.h>
 		
 		«FOR v : network.children SEPARATOR "\n"»#include "«v.getAdapter(Actor).name».h"«ENDFOR»
 		
