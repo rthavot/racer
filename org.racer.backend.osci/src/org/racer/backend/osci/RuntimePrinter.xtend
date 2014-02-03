@@ -1,26 +1,15 @@
-package ch.epfl.stimm.yace.backend.osci
+package org.racer.backend.osci
 
-import java.io.File
 import java.util.Map
 import net.sf.orcc.df.Network
-import net.sf.orcc.util.OrccUtil
 
-import static org.racer.backend.osci.OsciPathConstant.*
-
-class OsciRuntimePrinter {
+class RuntimePrinter extends Printer {
 
 	new(Map<String, Object> options) {
+		super(options)
 	}
 
-	def print(String targetFolder, Network network) {
-		val sourceFile = new File(targetFolder, SRC + File::separator + "__runtime.cpp")
-
-		val source = sourceContent(network)
-		OrccUtil::printFile(source, sourceFile)
-		return 0
-	}
-
-	def sourceContent(Network network) '''
+	override content(Network network) '''
 		#include <YACE.h>
 		#include "«network.simpleName».h"
 		

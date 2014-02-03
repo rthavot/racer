@@ -10,10 +10,10 @@
                id="net.sf.orcc.plugins.compileXDF">
          </option>
          <option
-               id="org.racer.backend.osci.ui.option.mapping">
+               id="org.racer.backend.osci.option.sctype">
          </option>
          <option
-               id="org.racer.backend.osci.ui.option.ipc">
+               id="org.racer.backend.osci.option.iac">
          </option>
       </backend>
    </extension>
@@ -21,22 +21,9 @@
          id="osci"
          point="net.sf.orcc.core.options">
       <option
-            id="org.racer.backend.osci.ui.option.mapping"
-            name="Mapping">
-         <checkBox>
-            <option
-                  id="org.racer.backend.osci.ui.option.mapping"
-                  name="File">
-               <browseFile
-                     folder="false"
-                     workspace="true">
-               </browseFile>
-            </option></checkBox>
-      </option>
-      <option
             defaultValue="FIFO"
-            id="org.racer.backend.osci.ui.option.ipc"
-            name="IPC">
+            id="org.racer.backend.osci.option.iac"
+            name="IAC">
          <comboBox>
             <comboBoxItem
                   id="FIFO">
@@ -45,9 +32,16 @@
                   id="Shared Memory">
             </comboBoxItem>
             <comboBoxItem
-                  id="Cache Memory">
+                  id="Cached Memory">
             </comboBoxItem>
          </comboBox>
+      </option>
+      <option
+            defaultValue="false"
+            description="Using SystemC Types"
+            id="org.racer.backend.osci.option.sctype"
+            name="ScType">
+         <checkBox></checkBox>
       </option>
    </extension>
    <extension

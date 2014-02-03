@@ -1,26 +1,15 @@
-package ch.epfl.stimm.yace.backend.osci
+package org.racer.backend.osci
 
-import net.sf.orcc.df.Network
 import java.util.Map
-import java.io.File
+import net.sf.orcc.df.Network
 
-import static org.racer.backend.osci.OsciPathConstant.*
-import net.sf.orcc.util.OrccUtil
-
-class OsciCMakePrinter {
+class CMakePrinter extends Printer {
 
 	new(Map<String, Object> options) {
+		super(options)
 	}
 
-	def print(String targetFolder, Network network) {
-		val sourceFile = new File(targetFolder, "CMakeLists.txt")
-
-		val source = content(network)
-		OrccUtil::printFile(source, sourceFile)
-		return 0
-	}
-
-	def content(Network network) '''
+	override content(Network network) '''
 		CMAKE_MINIMUM_REQUIRED (VERSION 2.8)
 		PROJECT («network.simpleName»)
 		
@@ -41,7 +30,6 @@ class OsciCMakePrinter {
 		SET(LIB_DIR D:/eclipse/yace/trunk/eclipse/plugins/ch.epfl.stimm.yace.backend.osci/runtime)
 		SET(TINYXML_INCLUDE_DIR ${LIB_DIR}/tinyxml/include)
 		SET(YACE_INCLUDE_DIR ${LIB_DIR}/yace/include)
-		SET(PROJECT_INCLUDE_DIR ${PROJECT_DIR}/«INCLUDE»)
 		
 		SUBDIRS(${LIB_DIR})
 		
@@ -51,11 +39,14 @@ class OsciCMakePrinter {
 			${TLM_INCLUDE_DIR}
 			${TINYXML_INCLUDE_DIR}
 			${YACE_INCLUDE_DIR}
-			${PROJECT_INCLUDE_DIR}
+			${PROJECT_DIR}
 		)
 		
-		FILE ( GLOB_RECURSE PROJECT_INCLUDE_FILES ${PROJECT_INCLUDE_DIR}/* )
-		FILE ( GLOB_RECURSE PROJECT_SRC_FILES ${PROJECT_DIR}/«SRC»/* )
+		FILE ( GLOB PROJECT_INCLUDE_FILES ${PROJECT_DIR}/*.h )
+		FILE ( GLOB PROJECT_SRC_FILES ${PROJECT_DIR}/*.cpp )
+		
+		# Configure ouput folder for generated binary
+		SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)
 		
 		ADD_EXECUTABLE («network.simpleName»
 			${PROJECT_INCLUDE_FILES} ${PROJECT_SRC_FILES}
