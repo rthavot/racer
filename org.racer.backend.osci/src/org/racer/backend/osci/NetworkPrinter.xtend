@@ -2,9 +2,13 @@ package org.racer.backend.osci
 
 import java.util.Date
 import java.util.Map
-import net.sf.orcc.df.Actor
 import net.sf.orcc.df.Network
 import net.sf.orcc.graph.Vertex
+import org.racer.backend.osci.template.CommonTemplate
+import org.racer.backend.osci.template.Template
+import org.racer.backend.osci.template.FifoTemplate
+import org.racer.backend.osci.template.SharedTemplate
+import org.racer.backend.osci.template.CachedTemplate
 
 /*
  * NetworkPrinter is a facade of the Template 
@@ -15,11 +19,20 @@ class NetworkPrinter extends Printer {
 
 	new(Map<String, Object> options) {
 		super(options)
-		template = new CommonTemplate(this)
+		if(iacShared)
+			template = new SharedTemplate(this)
+		if(iacCached)
+			template = new CachedTemplate(this)
+		else
+			template = new FifoTemplate(this)
 	}
 
 	def private beginSection(String string){
 		return CommonTemplate::beginSection(string)
+	}
+	
+	def private getActorName(Vertex vertex){
+		return CommonTemplate::getActorName(vertex)
 	}
 
 	override content(Network network) '''
@@ -33,9 +46,7 @@ class NetworkPrinter extends Printer {
 		#include <tlm.h>
 		#include <YACE.h>
 		
-		«FOR v : network.children SEPARATOR "\n"»#include "«v.getAdapter(Actor).name».h"«ENDFOR»
-		
-		#define __DEFAULT_SIZE_4096 12
+		«FOR v : network.children SEPARATOR "\n"»#include "«v.actorName».h"«ENDFOR»
 		
 		SC_MODULE(«network.simpleName») {
 		public:
@@ -53,7 +64,7 @@ class NetworkPrinter extends Printer {
 			public:
 			«"Constructor".beginSection»
 			«network.simpleName»(sc_module_name __sc_name) : sc_module(__sc_name),
-			«CommonTemplate::wrap(network.initializeFifo, ", ", 67)»,
+			«IF !iacCached»«CommonTemplate::wrap(network.initializeFifo, ", ", 67)»,«ENDIF»
 			«CommonTemplate::wrap(network.initializeInstance, ", ", 67)»
 			{
 				«FOR v : network.children SEPARATOR "\n"»«v.actorName».__pin_clock(__pin_clock);«ENDFOR»
@@ -63,8 +74,6 @@ class NetworkPrinter extends Printer {
 		};
 		#endif
 	'''
-	
-	def private actorName(Vertex v) '''«v.getAdapter(Actor).name»'''
 
 	def protected initializeInstance(Network network) '''«FOR v : network.children SEPARATOR ", "»«v.actorName»("«v.actorName»")«ENDFOR»'''
 

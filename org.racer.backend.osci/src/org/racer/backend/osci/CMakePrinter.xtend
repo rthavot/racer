@@ -25,11 +25,14 @@ class CMakePrinter extends Printer {
 		SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 		endif()
 		
+		ADD_DEFINITIONS(-D__RTL_SIMULATION__)
+		
 		SET(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 		
-		SET(LIB_DIR D:/eclipse/yace/trunk/eclipse/plugins/ch.epfl.stimm.yace.backend.osci/runtime)
+		SET(LIB_DIR D:/Eclipse/orc-racer/org.racer.backend.osci/runtime)
 		SET(TINYXML_INCLUDE_DIR ${LIB_DIR}/tinyxml/include)
 		SET(YACE_INCLUDE_DIR ${LIB_DIR}/yace/include)
+		
 		
 		SUBDIRS(${LIB_DIR})
 		

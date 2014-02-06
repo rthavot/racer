@@ -1,4 +1,4 @@
-package org.racer.backend.osci
+package org.racer.backend.osci.template
 
 import net.sf.orcc.df.Actor
 import net.sf.orcc.df.Connection
@@ -6,6 +6,7 @@ import net.sf.orcc.df.FSM
 import net.sf.orcc.df.Port
 import net.sf.orcc.ir.Procedure
 import net.sf.orcc.ir.Var
+import org.eclipse.emf.common.util.EList
 
 interface Template {
 
@@ -34,4 +35,9 @@ interface Template {
 	def CharSequence printScheduler(Actor a)
 	
 	def CharSequence printConstructor(Actor a)
+	
+	/*  */
+	
+	def CharSequence declareGlobals(Actor actor)
+	
 }

@@ -10,7 +10,7 @@ import net.sf.orcc.backends.transform.Inliner;
 import net.sf.orcc.backends.transform.LoopUnrolling;
 import net.sf.orcc.backends.transform.ParameterImporter;
 import net.sf.orcc.backends.transform.StoreOnceTransformation;
-import net.sf.orcc.backends.util.Vectorizable;
+import net.sf.orcc.backends.util.Alignable;
 import net.sf.orcc.df.Actor;
 import net.sf.orcc.df.Instance;
 import net.sf.orcc.df.Network;
@@ -26,20 +26,20 @@ import net.sf.orcc.util.OrccLogger;
 import net.sf.orcc.util.Void;
 
 import org.eclipse.core.resources.IFile;
-
 import org.racer.backend.osci.CMakePrinter;
 import org.racer.backend.osci.InstancePrinter;
 import org.racer.backend.osci.NetworkPrinter;
 import org.racer.backend.osci.RuntimePrinter;
-import static org.racer.backend.osci.OsciPathConstant.*;
+
+import static org.racer.backend.osci.OsciConstant.*;
 
 public class OsciBackendImpl extends AbstractBackend {
 
 	@Override
 	protected void doInitializeOptions() {
 		// Create empty folders
-		new File(path + File.separator + BUILD).mkdirs();
-		new File(path + File.separator + BIN).mkdirs();
+		new File(path + File.separator + PATH_BUILD).mkdirs();
+		new File(path + File.separator + PATH_BIN).mkdirs();
 	}
 
 	@Override
@@ -61,7 +61,7 @@ public class OsciBackendImpl extends AbstractBackend {
 		}
 
 		// update "vectorizable" information
-		Vectorizable.setVectorizableAttributs(actor);
+		Alignable.setAlignability(actor);
 	}
 
 	protected void doTransformNetwork(Network network) {
@@ -72,7 +72,6 @@ public class OsciBackendImpl extends AbstractBackend {
 		new UnitImporter().doSwitch(network);
 
 		new ArgumentEvaluator().doSwitch(network);
-
 	}
 
 	@Override

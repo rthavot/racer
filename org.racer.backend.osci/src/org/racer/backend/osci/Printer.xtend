@@ -18,6 +18,8 @@ import net.sf.orcc.util.OrccLogger
 import net.sf.orcc.util.OrccUtil
 import org.apache.commons.lang.ArrayUtils
 
+import static org.racer.backend.osci.OsciConstant.*
+
 class Printer {
 
 	/**
@@ -25,15 +27,35 @@ class Printer {
 	 * href="http://docs.oracle.com/javase/1.4.2/docs/guide/security/CryptoSpec.html#AppA">
 	 * http://docs.oracle.com/javase/1.4.2/docs/guide/security/CryptoSpec.html#AppA</a>)
 	 */
-	private static val String digestAlgo = "MD5";
+	private static val String digestAlgo = "MD5"
 
-	protected var Map<String, Object> optionMap;
-	protected var String entityName = "";
+	protected var Map<String, Object> optionMap
+	protected var String entityName = ""
 	protected var Map<Port, Connection> incomingPortMap
 	protected var Map<Port, List<Connection>> outgoingPortMap
 
 	new(Map<String, Object> options) {
 		optionMap = options
+	}
+	
+	def public isIacFifo() {
+		return optionMap.get(OPTION_IAC) as String == OPTION_IAC_FIFO;
+	}
+	
+	def public isIacShared() {
+		return optionMap.get(OPTION_IAC) as String == OPTION_IAC_SM;
+	}
+	
+	def public isIacCached() {
+		return optionMap.get(OPTION_IAC) as String == OPTION_IAC_CM;
+	}
+	
+	def public isScType() {
+		return optionMap.get(OPTION_SC_TYPE) as Boolean;
+	}
+	
+	def public getOutgoingPortMap(){
+		return outgoingPortMap;
 	}
 
 	//========================================
@@ -43,14 +65,14 @@ class Printer {
 		entityName = name
 		incomingPortMap = incomings
 		outgoingPortMap = outgoings
-		optionMap.put("EntityName", name)
-		optionMap.put("IncomingPortMap", incomings)
-		optionMap.put("OutgoingPortMap", outgoings)
+		//optionMap.put("EntityName", name)
+		//optionMap.put("IncomingPortMap", incomings)
+		//optionMap.put("OutgoingPortMap", outgoings)
 	}
 
-	def getOptionMap() {
-		return optionMap;
-	}
+	/*def getOptionMap() {
+		return optionMap
+	}*/
 
 	//========================================
 	//             Compute Print

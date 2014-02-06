@@ -1,17 +1,17 @@
-package org.racer.backend.osci
+package org.racer.backend.osci.template
 
 import java.util.LinkedList
 import java.util.List
-import java.util.Map
-import java.util.Map.Entry
 import net.sf.orcc.backends.CommonPrinter
 import net.sf.orcc.backends.ir.BlockFor
 import net.sf.orcc.df.Action
+import net.sf.orcc.df.Actor
 import net.sf.orcc.df.Connection
 import net.sf.orcc.df.FSM
-import net.sf.orcc.df.Pattern
 import net.sf.orcc.df.Port
 import net.sf.orcc.df.State
+import net.sf.orcc.df.Transition
+import net.sf.orcc.graph.Vertex
 import net.sf.orcc.ir.Arg
 import net.sf.orcc.ir.ArgByRef
 import net.sf.orcc.ir.ArgByVal
@@ -42,17 +42,14 @@ import net.sf.orcc.ir.TypeVoid
 import net.sf.orcc.ir.Use
 import net.sf.orcc.ir.Var
 import net.sf.orcc.ir.impl.ExprVarImpl
-
-import static org.racer.backend.osci.OsciOptionConstant.*
-import net.sf.orcc.df.Actor
-import net.sf.orcc.df.Transition
+import org.racer.backend.osci.Printer
 
 /*
  * The CommonTemplate is a standard Template without options
  * - Communication : tlm_fifo
  * - Type : non accurate
  */
-class CommonTemplate extends CommonPrinter implements Template {
+class SharedTemplate extends CommonPrinter implements Template {
 
 	private List<Var> destroyVarList = newArrayList()
 
@@ -69,19 +66,11 @@ class CommonTemplate extends CommonPrinter implements Template {
 	//          Get from printer
 	//========================================
 	def private getOutgoingPortMap() {
-		return printer.optionMap.get("OutgoingPortMap") as Map<Port, List<Connection>>
+		return printer.outgoingPortMap
 	}
 
 	def private isScType() {
-		return printer.optionMap.get(SC_TYPE) as Boolean;
-	}
-
-	def private isFifo() {
-		return printer.optionMap.get(INTER_ACTOR_COMMUNICATION) as String == IAC_FIFO;
-	}
-
-	def private isSm() {
-		return printer.optionMap.get(INTER_ACTOR_COMMUNICATION) as String == IAC_SM;
+		return printer.scType
 	}
 
 	//========================================
@@ -105,6 +94,8 @@ class CommonTemplate extends CommonPrinter implements Template {
 		} while (end != seq.length)
 		'''«FOR line : lines SEPARATOR "\n"»«line»«ENDFOR»'''
 	}
+
+	def static getActorName(Vertex v) '''«v.getAdapter(Actor).name»'''
 
 	//========================================
 	//             Expressions
@@ -189,13 +180,15 @@ class CommonTemplate extends CommonPrinter implements Template {
 	//========================================
 	//             Declarations
 	//========================================
-	def dispatch compileIndexedName(Def d) '''«IF !d.variable.needAllocation»«d.variable.name»«ELSE»(*«d.variable.name»)«ENDIF»'''
+	def dispatch indexedName(Def d) '''«IF !d.variable.needAllocation»«d.variable.name»«ELSE»(*«d.variable.name»)«ENDIF»'''
 
-	def dispatch compileIndexedName(Use u) '''«IF !u.variable.needAllocation»«u.variable.name»«ELSE»(*«u.variable.name»)«ENDIF»'''
+	def dispatch indexedName(Use u) '''«IF !u.variable.needAllocation»«u.variable.name»«ELSE»(*«u.variable.name»)«ENDIF»'''
 
-	def dispatch compileIndexedName(Var v) '''«IF !v.needAllocation»«v.name»«ELSE»(*«v.name»)«ENDIF»'''
+	def dispatch indexedName(Var v) '''«IF !v.needAllocation»«v.name»«ELSE»(*«v.name»)«ENDIF»'''
 
-	override declare(Var v) '''«v.typing» «v.compileIndexedName»«FOR dim : v.type.dimensions»[«dim»]«ENDFOR»'''
+	override declare(Var v) '''
+		«v.typing» «v.indexedName»«FOR dim : v.type.dimensions»[«dim»]«ENDFOR»;
+	'''
 
 	override declare(Procedure proc) '''«proc.typing» «proc.name»(«proc.parameters.join(", ")[variable.declare]»);'''
 
@@ -228,7 +221,7 @@ class CommonTemplate extends CommonPrinter implements Template {
 			«v.name» = 0;
 		«ELSEIF v.initialized»
 			«v.declareTemporary.wrap(", ", 72)»
-			memcpy(«v.name», __«v.name», «FOR dim : v.type.dimensions SEPARATOR "*"»«dim»«ENDFOR»*sizeof(«(v.typing)»));
+			memcpy(«v.name», __«v.name», «FOR dim : v.type.dimensions SEPARATOR "*"»«dim»«ENDFOR»*sizeof(«v.typing»));
 		«ELSE»
 			memset(«v.name», 0, «FOR dim : v.type.dimensions SEPARATOR "*"»«dim»«ENDFOR»*sizeof(«v.typing»));
 		«ENDIF»
@@ -241,8 +234,8 @@ class CommonTemplate extends CommonPrinter implements Template {
 		if («block.condition.doSwitch») {
 			«FOR thenBlock : block.thenBlocks»«thenBlock.doSwitch»«ENDFOR»
 		}«IF block.elseRequired» else {
-			«FOR elseBlock : block.elseBlocks»«elseBlock.doSwitch»«ENDFOR»
-		}
+				«FOR elseBlock : block.elseBlocks»«elseBlock.doSwitch»«ENDFOR»
+			}
 		«ENDIF»
 	'''
 
@@ -267,30 +260,45 @@ class CommonTemplate extends CommonPrinter implements Template {
 	//            Instructions
 	//========================================
 	override caseInstAssign(InstAssign inst) '''
-		«inst.target.compileIndexedName» = «inst.value.doSwitch»;
+		«inst.target.indexedName» = «inst.value.doSwitch»;
 	'''
 
 	override caseInstLoad(InstLoad inst) '''
-		«inst.target.compileIndexedName» = «inst.source.compileIndexedName»«FOR index : inst.indexes»[«index.doSwitch»]«ENDFOR»;
+		«IF ((procedure.eContainer as Action).inputPattern.contains(inst.source.variable) ||
+			(procedure.eContainer as Action).peekPattern.contains(inst.source.variable))»
+			«inst.target.indexedName» = __port_«inst.source.variable.name»_0.read(«FOR index : inst.indexes»«index.doSwitch»«ENDFOR»);
+		«ELSE»
+			«inst.target.indexedName» = «inst.source.indexedName»«FOR index : inst.indexes»[«index.doSwitch»]«ENDFOR»;
+		«ENDIF»
+	'''
+
+	override caseInstStore(InstStore inst) '''
+		«inst.target.indexedName»«FOR index : inst.indexes»[«index.doSwitch»]«ENDFOR» = «inst.value.doSwitch»;
+		«IF (procedure.eContainer as Action).outputPattern.contains(inst.target.variable)»
+			«FOR c : getOutgoingPortMap.get((procedure.eContainer as Action).outputPattern.getPort(inst.target.variable))»
+				__port_«inst.target.variable.name»_«c.attribute("fifoId")».write(«FOR index : inst.indexes»«index.doSwitch»«ENDFOR»,«inst.
+			target.indexedName»«FOR index : inst.indexes»[«index.doSwitch»]«ENDFOR»);
+			«ENDFOR»
+		«ENDIF»
 	'''
 
 	override caseInstCall(InstCall inst) '''
 		«IF inst.print»
 			native::println(«inst.arguments.printfArgs.join(", ")»);
 		«ELSE»
-			«IF inst.target != null»«inst.target.compileIndexedName» = «ENDIF»«IF (inst.procedure.native)»native::«(inst.
-			procedure.attribute("package") as List<String>).join("::")»::«ENDIF»«inst.procedure.name»(«inst.arguments.join(", ")[
+			«IF inst.target != null»«inst.target.indexedName» = «ENDIF»«IF (inst.procedure.native)»native::«(inst.procedure.
+			attribute("package") as List<String>).join("::")»::«ENDIF»«inst.procedure.name»(«inst.arguments.join(", ")[
 			printCallArg]»);
 		«ENDIF»
 	'''
 
 	def private printCallArg(Arg arg) {
 		if (arg.byRef) {
-			"&" + (arg as ArgByRef).use.compileIndexedName + (arg as ArgByRef).indexes.printArrayIndexes
+			"&" + (arg as ArgByRef).use.indexedName + (arg as ArgByRef).indexes.printArrayIndexes
 		} else {
 			val v = (arg as ArgByVal).value
 			if (v instanceof ExprVarImpl)
-				(v as ExprVarImpl).use.compileIndexedName
+				(v as ExprVarImpl).use.indexedName
 			else
 				v.doSwitch
 		}
@@ -298,100 +306,15 @@ class CommonTemplate extends CommonPrinter implements Template {
 
 	override caseInstReturn(InstReturn inst) '''
 		«IF procedure.eContainer instanceof Action»«IF (procedure.eContainer as Action).body.equals(procedure)»
-			«FOR e : (procedure.eContainer as Action).outputPattern.portToVarMap»«e.compileWrite(
-			(procedure.eContainer as Action).outputPattern)»«ENDFOR»
+			«FOR e : (procedure.eContainer as Action).inputPattern.numTokensMap»
+				__port_«e.key.name»_0.increase(«e.value»);
+			«ENDFOR»
+			«FOR e : (procedure.eContainer as Action).outputPattern.numTokensMap»«FOR c : outgoingPortMap.get(e.key)»
+				__port_«e.key.name»_«c.attribute("fifoId")».increase(«e.value»);
+			«ENDFOR»«ENDFOR»
 		«ENDIF»«ENDIF»
 		«FOR v : destroyVarList SEPARATOR "\n"»free(«v.name»);«ENDFOR»
 		«IF inst.value != null»return «inst.value.doSwitch»;«ENDIF»
-	'''
-
-	override caseInstStore(InstStore inst) '''
-		«inst.target.compileIndexedName»«FOR index : inst.indexes»[«index.doSwitch»]«ENDFOR» = «inst.value.doSwitch»;
-	'''
-
-	//========================================
-	//            Read
-	//========================================
-	def private compileRead(Entry<Port, Var> e, Pattern p) '''«IF (fifo)»«e.fifoRead(p)»«ELSEIF (sm)»«e.smRead(p)»«ENDIF»'''
-
-	def private fifoRead(Entry<Port, Var> e, Pattern p) '''
-		«IF p.getNumTokens(e.key) == 1»
-			__port_«e.key.name»_0->get(«e.value.compileIndexedName»[0]);
-		«ELSE»
-			for(int __i=0;__i<«p.getNumTokens(e.key)»;__i++){
-				__port_«e.key.name»_0->get(«e.value.compileIndexedName»[__i]);
-			}
-		«ENDIF»
-		__items_«e.key.name»_0 -= «p.getNumTokens(e.key)»;
-	'''
-
-	def protected smRead(Entry<Port, Var> e, Pattern p) '''
-		«IF p.getNumTokens(e.key) == 1»
-			«e.value.compileIndexedName»[0] = __port_«e.key.name»_0.read();
-		«ELSE»
-			for(int __i=0;__i<«p.getNumTokens(e.key)»;__i++){
-				«e.value.compileIndexedName»[__i] = __port_«e.key.name»_0.read(__i);
-			}
-		«ENDIF»
-		__port_«e.key.name»_0.increase(«p.getNumTokens(e.key)»);
-	'''
-
-	//========================================
-	//            Peek
-	//========================================
-	def private compilePeek(Entry<Port, Var> e, Pattern p) '''«IF (fifo)»«e.fifoPeek(p)»«ELSEIF (sm)»«e.smPeek(p)»«ENDIF»'''
-
-	def private fifoPeek(Entry<Port, Var> e, Pattern p) '''
-		«IF p.getNumTokens(e.key) == 1»
-			__port_«e.key.name»_0->peek(«e.value.compileIndexedName»[0]);
-		«ELSE»
-			for(int __i=0;__i<«p.getNumTokens(e.key)»;__i++){
-				__port_«e.key.name»_0->peek(«e.value.compileIndexedName»[__i]);
-			}
-		«ENDIF»
-	'''
-
-	def protected smPeek(Entry<Port, Var> e, Pattern p) '''
-		«IF p.getNumTokens(e.key) == 1»
-			«e.value.compileIndexedName()»[0] = __port_«e.key.name»_0.read();
-		«ELSE»
-			for(int __i=0;__i<«p.getNumTokens(e.key)»;__i++){
-				«e.value.compileIndexedName»[__i] = __port_«e.key.name»_0.read(__i);
-			}
-		«ENDIF»
-	'''
-
-	//========================================
-	//            Write
-	//========================================
-	def private compileWrite(Entry<Port, Var> e, Pattern p) '''«IF (fifo)»«e.fifoWrite(p)»«ELSEIF (sm)»«e.smWrite(p)»«ENDIF»'''
-
-	def private fifoWrite(Entry<Port, Var> e, Pattern p) '''
-		«IF p.getNumTokens(e.key) == 1»
-			«FOR c : getOutgoingPortMap.get(e.key) SEPARATOR "\n"»__port_«e.key.name»_«c.attribute("fifoId")»->put(«e.value.
-			compileIndexedName»[0]);«ENDFOR»
-		«ELSE»
-			for(int __i=0;__i<«p.getNumTokens(e.key)»;__i++){
-				«FOR c : getOutgoingPortMap.get(e.key) SEPARATOR "\n"»__port_«e.key.name»_«c.attribute("fifoId")»->put(«e.value.
-			compileIndexedName»[__i]);«ENDFOR»
-			}
-		«ENDIF»
-		«FOR c : getOutgoingPortMap.get(e.key) SEPARATOR "\n"»__rooms_«e.key.name»_«c.attribute("fifoId")» -= «p.
-			getNumTokens(e.key)»;«ENDFOR»
-	'''
-
-	def protected smWrite(Entry<Port, Var> e, Pattern p) '''
-		«IF p.getNumTokens(e.key) == 1»
-			«FOR c : outgoingPortMap.get(e.key) SEPARATOR "\n"»__port_«e.key.name»_«c.attribute("fifoId")».write(0,«e.value.
-			compileIndexedName»[0]);«ENDFOR»
-		«ELSE»
-			for(int __i=0;__i<«p.getNumTokens(e.key)»;__i++){
-				«FOR c : outgoingPortMap.get(e.key) SEPARATOR "\n"»__port_«e.key.name»_«c.attribute("fifoId")».write(__i,«e.value.
-			compileIndexedName»[__i]);«ENDFOR»
-			}
-		«ENDIF»
-		«FOR c : outgoingPortMap.get(e.key) SEPARATOR "\n"»__port_«e.key.name»_«c.attribute("fifoId")».increase(«p.
-			getNumTokens(e.key)»);«ENDFOR»
 	'''
 
 	//========================================
@@ -409,34 +332,21 @@ class CommonTemplate extends CommonPrinter implements Template {
 	//            Ports & Fifos
 	//========================================
 	override declare(Connection c) '''
-		«IF fifo»
-			tlm_fifo<«c.sourcePort.typing»> fifo_«c.attribute("id")»;
-		«ELSEIF sm»
-			df_fifo<«c.sourcePort.typing»> fifo_«c.attribute("id")»;
-		«ENDIF»
+		df_fifo<«c.sourcePort.typing»> fifo_«c.attribute("id")»;
 	'''
 
 	override declareSize(Connection c) '''fifo_«c.attribute("id")»(4096)'''
 
 	override declareLink(Connection c) '''
-		«c.source.getAdapter(Actor).name».__port_«c.sourcePort.name»_«c.attribute("fifoId")»(«IF sm»&«ENDIF»fifo_«c.attribute("id")»);
-		«c.target.getAdapter(Actor).name».__port_«c.targetPort.name»_0(«IF sm»&«ENDIF»fifo_«c.attribute("id")»);
+		«c.source.actorName».__port_«c.sourcePort.name»_«c.attribute("fifoId")»(&fifo_«c.attribute("id")»);
+		«c.target.actorName».__port_«c.targetPort.name»_0(&fifo_«c.attribute("id")»);
 	'''
 
 	override declare(Port p) '''
 		«IF !outgoingPortMap.containsKey(p)/* Input Port */»
-			«IF fifo»
-				sc_port<tlm_fifo_get_if<«p.typing»>> __port_«p.name»_0;
-			«ELSEIF sm»
-				df_fifo_in<«p.typing»> __port_«p.name»_0;
-			«ENDIF»
+			df_fifo_in<«p.typing»> __port_«p.name»_0;
 		«ELSE/*Output port */»
-			«IF fifo»
-				«FOR e : outgoingPortMap.get(p) SEPARATOR "\n"»sc_port<tlm_fifo_put_if<«p.typing»>> __port_«p.name»_«e.
-			attribute("fifoId")»;«ENDFOR»
-			«ELSEIF sm»
-				«FOR e : outgoingPortMap.get(p) SEPARATOR "\n"»df_fifo_out<«p.typing»> __port_«p.name»_«e.attribute("fifoId")»;«ENDFOR»
-			«ENDIF»
+			«FOR e : outgoingPortMap.get(p) SEPARATOR "\n"»df_fifo_out<«p.typing»> __port_«p.name»_«e.attribute("fifoId")»;«ENDFOR»
 		«ENDIF»
 	'''
 
@@ -450,20 +360,14 @@ class CommonTemplate extends CommonPrinter implements Template {
 
 	override updateStatus(Port p) '''
 		«IF !outgoingPortMap.containsKey(p)/* Input status */»
-			«IF fifo»
-				__items_«p.name»_0 = __port_«p.name»_0->used();
-			«ELSEIF sm»
-				__items_«p.name»_0 = __port_«p.name»_0.used();
-			«ENDIF»
+			__items_«p.name»_0 = __port_«p.name»_0.used();
 		«ELSE/* Outpout status */»
-			«IF fifo»
-				«FOR e : outgoingPortMap.get(p) SEPARATOR "\n"»__rooms_«p.name»_«e.attribute("fifoId")» = __port_«p.name»_«e.
-			attribute("fifoId")»->size() - __port_«p.name»_«e.attribute("fifoId")»->used();«ENDFOR»
-			«ELSEIF sm»
-				«FOR e : outgoingPortMap.get(p) SEPARATOR "\n"»__rooms_«p.name»_«e.attribute("fifoId")» = __port_«p.name»_«e.attribute("fifoId")».freed();«ENDFOR»
-			«ENDIF»
+			«FOR e : outgoingPortMap.get(p) SEPARATOR "\n"»__rooms_«p.name»_«e.attribute("fifoId")» = __port_«p.name»_«e.
+			attribute("fifoId")».freed();«ENDFOR»
 		«ENDIF»
 	'''
+
+	def resetPort(Port p) ''''''
 
 	//========================================
 	//        Procedures & Pre-Scheduler
@@ -476,17 +380,11 @@ class CommonTemplate extends CommonPrinter implements Template {
 				«IF p.eContainer instanceof Action»
 					«IF (p.eContainer as Action).body.equals(p)»
 						«FOR v : p.locals SEPARATOR "\n"»«v.declare»;«ENDFOR»
-						«FOR v : (p.eContainer as Action).inputPattern.variables SEPARATOR "\n"»«v.declare»;«ENDFOR»
 						«FOR v : (p.eContainer as Action).outputPattern.variables SEPARATOR "\n"»«v.declare»;«ENDFOR»
 						«FOR v : p.locals.filter(v|v.needAllocation)»«v.allocate»«ENDFOR»
-						«FOR v : (p.eContainer as Action).inputPattern.variables.filter(v|v.needAllocation)»«v.allocate»«ENDFOR»
 						«FOR v : (p.eContainer as Action).outputPattern.variables.filter(v|v.needAllocation)»«v.allocate»«ENDFOR»
-						«FOR e : (p.eContainer as Action).inputPattern.portToVarMap»«e.compileRead((p.eContainer as Action).inputPattern)»«ENDFOR»
 					«ELSE»
 						«FOR v : p.locals SEPARATOR "\n"»«v.declare»;«ENDFOR»
-						«FOR v : (p.eContainer as Action).peekPattern.variables»«v.declare»;«ENDFOR»
-						«FOR v : (p.eContainer as Action).peekPattern.variables.filter(v|v.needAllocation)»«v.allocate»«ENDFOR»
-						«FOR e : (p.eContainer as Action).peekPattern.portToVarMap»«e.compilePeek((p.eContainer as Action).peekPattern)»«ENDFOR»
 					«ENDIF»
 				«ELSE»
 					«FOR v : p.locals SEPARATOR "\n"»«v.declare»;«ENDFOR»
@@ -509,13 +407,19 @@ class CommonTemplate extends CommonPrinter implements Template {
 
 	override printScheduler(Actor actor) '''	
 		void schedule() {
-			this->initialize();
+			__booting.write(true);
+			«FOR p : actor.inputs»«p.resetPort»«ENDFOR»
+			«FOR p : actor.outputs»«p.resetPort»«ENDFOR»
 			wait();
 			while(1){
 				«FOR p : actor.inputs»«p.updateStatus»«ENDFOR»
 				«FOR p : actor.outputs»«p.updateStatus»«ENDFOR»
+				if(__booting.read()) {
+					this->initialize();
+					__booting.write(false);
+					«schedulerHasExecuted»
+				}«FOR a : actor.actionsOutsideFsm BEFORE "else if" SEPARATOR " else if"»«a.callAction(null)»«ENDFOR»
 				«IF actor.fsm != null»
-					«FOR a : actor.actionsOutsideFsm BEFORE "if" SEPARATOR " else if"»«a.callAction(null)»«ENDFOR»
 					switch(__FSM_state) {
 						«FOR state : actor.fsm.states»
 							case __state_«state.name»:
@@ -523,8 +427,6 @@ class CommonTemplate extends CommonPrinter implements Template {
 							break;
 						«ENDFOR»
 					}
-				«ELSE»
-					«FOR a : actor.actionsOutsideFsm BEFORE "if" SEPARATOR " else if"»«a.callAction(null)»«ENDFOR»
 				«ENDIF»
 				wait();
 			}
@@ -612,5 +514,17 @@ class CommonTemplate extends CommonPrinter implements Template {
 	def private toExpression(Instruction instruction) {
 		instruction.doSwitch.toString.replaceAll("([^;]+);(\\s+)?", "$1")
 	}
+	
+	//========================================
+	//            Facade interfaces 
+	//========================================
+	
+	override declareGlobals(Actor actor) '''
+		«IF !actor.stateVars.empty»
+		«"Global Variables".beginSection»
+		«FOR global : actor.stateVars»«declare(global)»«ENDFOR»
+		«"\n"»
+		«ENDIF»
+	'''
 
 }

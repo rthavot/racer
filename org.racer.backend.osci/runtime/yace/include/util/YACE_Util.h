@@ -4,6 +4,6 @@
 #include "yace_getOpt.h"
 #include "yace_timer.h"
 #include "yace_stdio.h"
-#include "yace_cbuffer.h"
+#include "yace_dfFifo.h"
 
 #endif
