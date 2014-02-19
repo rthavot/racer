@@ -19,6 +19,10 @@ import net.sf.orcc.util.OrccUtil
 import org.apache.commons.lang.ArrayUtils
 
 import static org.racer.backend.osci.OsciConstant.*
+import org.racer.backend.osci.template.Template
+import org.racer.backend.osci.template.SharedTemplate
+import org.racer.backend.osci.template.CachedTemplate
+import org.racer.backend.osci.template.FifoTemplate
 
 class Printer {
 
@@ -29,25 +33,22 @@ class Printer {
 	 */
 	private static val String digestAlgo = "MD5"
 
+	protected var Template template = null;
+
 	protected var Map<String, Object> optionMap
-	protected var String entityName = ""
+	protected var Actor actor;
+	protected var Actor network;
 	protected var Map<Port, Connection> incomingPortMap
 	protected var Map<Port, List<Connection>> outgoingPortMap
 
 	new(Map<String, Object> options) {
 		optionMap = options
-	}
-	
-	def public isIacFifo() {
-		return optionMap.get(OPTION_IAC) as String == OPTION_IAC_FIFO;
-	}
-	
-	def public isIacShared() {
-		return optionMap.get(OPTION_IAC) as String == OPTION_IAC_SM;
-	}
-	
-	def public isIacCached() {
-		return optionMap.get(OPTION_IAC) as String == OPTION_IAC_CM;
+		if(optionMap.get(OPTION_IAC) as String == OPTION_IAC_SM)
+			template = new SharedTemplate(this)
+		else if(optionMap.get(OPTION_IAC) as String == OPTION_IAC_CM)
+			template = new CachedTemplate(this)
+		else
+			template = new FifoTemplate(this)
 	}
 	
 	def public isScType() {
@@ -57,35 +58,45 @@ class Printer {
 	def public getOutgoingPortMap(){
 		return outgoingPortMap;
 	}
+	
+	def public getOptionMap(){
+		return optionMap;
+	}
+	
+	def public getActor(){
+		return actor;
+	}
+	
+	def public getNetwork(){
+		return network;
+	}
 
 	//========================================
 	//             Options
 	//========================================
-	def private setup(String name, Map<Port, Connection> incomings, Map<Port, List<Connection>> outgoings) {
-		entityName = name
-		incomingPortMap = incomings
-		outgoingPortMap = outgoings
-		//optionMap.put("EntityName", name)
-		//optionMap.put("IncomingPortMap", incomings)
-		//optionMap.put("OutgoingPortMap", outgoings)
+	def private setup(Actor actor) {
+		incomingPortMap = actor.incomingPortMap
+		outgoingPortMap = actor.outgoingPortMap
+	}
+	
+	def private setup(Network network) {
+		incomingPortMap = null
+		outgoingPortMap = null
 	}
 
-	/*def getOptionMap() {
-		return optionMap
-	}*/
 
 	//========================================
 	//             Compute Print
 	//========================================
 	def int print(String targetPath, Network network) {
-		setup(network.name, null, null)
+		network.setup
 		val targetFile = new File(targetPath)
 		OrccUtil::printFile(content(network), targetFile)
 		return 0
 	}
 
 	def print(String targetPath, Actor actor) {
-		setup(actor.name, actor.incomingPortMap, actor.outgoingPortMap)
+		actor.setup
 		val targetFile = new File(targetPath)
 
 		val content = content(actor);
@@ -175,6 +186,28 @@ class Printer {
 		}
 
 		return ArrayUtils::EMPTY_BYTE_ARRAY;
+	}
+	
+	//========================================
+	//            Static Layout
+	//========================================
+	def static beginSection(String section) '''
+		////////////////////////////////////////////////////////////////////////////////
+		// «section»
+	'''
+
+	def static wrap(CharSequence seq, String separator, Integer limit) {
+		var lines = newArrayList()
+		var String s = seq.toString
+		var int start = 0
+		var int end = 0
+		do {
+			end = s.indexOf(separator, start + limit)
+			if(end == -1) end = s.length else end = end + separator.length
+			lines.add(s.subSequence(start, end))
+			start = end
+		} while (end != seq.length)
+		'''«FOR line : lines SEPARATOR "\n"»«line»«ENDFOR»'''
 	}
 
 }

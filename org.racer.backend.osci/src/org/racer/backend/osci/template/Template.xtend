@@ -2,25 +2,9 @@ package org.racer.backend.osci.template
 
 import net.sf.orcc.df.Actor
 import net.sf.orcc.df.Connection
-import net.sf.orcc.df.FSM
-import net.sf.orcc.df.Port
-import net.sf.orcc.ir.Procedure
-import net.sf.orcc.ir.Var
-import org.eclipse.emf.common.util.EList
+import net.sf.orcc.df.Network
 
 interface Template {
-
-	def CharSequence declare(Var v)
-
-	def CharSequence declare(Procedure p)
-
-	def CharSequence declare(FSM v)
-
-	def CharSequence declare(Port p)
-
-	def CharSequence declareStatus(Port p)
-
-	def CharSequence updateStatus(Port p)
 
 	def CharSequence declare(Connection c)
 
@@ -28,16 +12,28 @@ interface Template {
 
 	def CharSequence declareSize(Connection c)
 
-	def CharSequence printProcedure(Procedure p)
-
-	def CharSequence printInitializer(Actor a)
-
-	def CharSequence printScheduler(Actor a)
-	
-	def CharSequence printConstructor(Actor a)
 	
 	/*  */
 	
-	def CharSequence declareGlobals(Actor actor)
+	def CharSequence printGlobals(Actor actor)
+	
+	def CharSequence printPorts(Actor actor)
+	
+	def CharSequence printStatuses(Actor actor)
+	
+	def CharSequence printControls(Actor actor)
+	
+	def CharSequence printActions(Actor actor)
+	
+	def CharSequence printInitializer(Actor actor)
+	
+	def CharSequence printScheduler(Actor actor)
+	
+	def CharSequence printConstructor(Actor actor)
+	
+	/* */
+	
+	def CharSequence printConstructor(Network network)
+	
 	
 }

@@ -16,11 +16,16 @@ void __memcpy (void * dst, const void * src, const size_t num ){
 		ptr[i] = ptr_[i];
 };
 
-
 #include "ap_fifo_if.h"
 
 #include "native/yace_native.h"
 #include "osci/yace_osci.h"
 #include "util/yace_util.h"
+
+#if(__RTL_SIMULATION__)
+#define LABEL(id)    
+#else
+#define LABEL(id) id :   
+#endif
 
 #endif
